@@ -7,6 +7,9 @@ from BeautifulSoup import *
 from urlparse import urljoin
 from pysqlite2 import dbapi2 as sqlite
 
+import nn
+mynet = nn.Searchnet('nn.db')
+
 ignorewords = set(['the', 'of', 'to', 'and', 'a', 'in', 'is', 'it'])
 
 class Crawler:
@@ -213,7 +216,7 @@ class Searcher:
         rankedscores = sorted([(score, url) for (url, score) in scores.items()], reverse=1)
         for (score, urlid) in rankedscores[0:10]:
             print '%f\t%s' % (score, self.geturlname(urlid))
-
+        return wordids, [r[1] for r in rankedscores[0:10]]
     # the best is 1.0
     def normalizescores(self, scores, smallIsBetter=0):
         vsmall = 0.00001
@@ -253,3 +256,9 @@ class Searcher:
             'select count(*) from link where toid=%d' % u).fetchone()[0]) \
         for u in uniqueurls])
         return self.normalizescores(inboundcount)
+
+    def nnscore(self, rows, wordids):
+        urlids = [urlid for urlid in set([row[0] for row in rows])]
+        nnres = mynet.getresult(wordids, urlids)
+        scores = dict([(urlids[i], nnres[i]) for i in range(len(urlids))])
+        return self.normalizescores(scores)
